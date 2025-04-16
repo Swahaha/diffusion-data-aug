@@ -1,1 +1,1 @@
-# diffusion-data-aug
+# Investigating Data Augmentation with Diffusion and GANs

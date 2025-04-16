@@ -1,0 +1,4 @@
+nohup: ignoring input
+Using device: cuda
+Epoch 1/100, Loss: 0.1759
+Epoch 2/100, Loss: 0.0723
