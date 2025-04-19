@@ -13,9 +13,9 @@ def train_diffusion():
     batch_size = 128
     num_timesteps = 1000
     lr = 0.0001
-    num_epochs = 100
+    num_epochs = 200
     device = setup_device()
-    
+
     # Create directories if they don't exist
     os.makedirs('checkpoints/diffusion', exist_ok=True)
     os.makedirs('results/diffusion', exist_ok=True)
@@ -26,6 +26,16 @@ def train_diffusion():
     
     # Setup optimizer
     optimizer = optim.AdamW(model.parameters(), lr=lr)
+
+    start_epoch = 101
+    checkpoint_path = 'checkpoints/diffusion/checkpoint_epoch_100.pth'
+    if os.path.exists(checkpoint_path):
+        print(f"Loading checkpoint from {checkpoint_path}")
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        start_epoch = checkpoint['epoch']
+        print(f"Resuming training from epoch {start_epoch}")
     
     # Loss function
     criterion = nn.MSELoss()
@@ -65,14 +75,14 @@ def train_diffusion():
         
         # Print single line per epoch
         avg_loss = total_loss / len(train_loader)
-        print(f'Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}')
+        print(f'Epoch {start_epoch+epoch+1}/{start_epoch+num_epochs}, Loss: {avg_loss:.4f}')
         
         # Save checkpoint every 5 epochs
-        if (epoch + 1) % 5 == 0:
-            save_checkpoint(model, optimizer, epoch + 1, f'checkpoints/diffusion/checkpoint_epoch_{epoch+1}.pth')
+        if (start_epoch + epoch + 1) % 5 == 0:
+            save_checkpoint(model, optimizer, start_epoch + epoch + 1, f'checkpoints/diffusion/checkpoint_epoch_{start_epoch+epoch+1}.pth')
         
         # Save generated samples
-        if (epoch + 1) % 5 == 0:
+        if (start_epoch+epoch + 1) % 5 == 0:
             with torch.no_grad():
                 # Generate samples for each class
                 samples = []
@@ -83,7 +93,7 @@ def train_diffusion():
                     
                     # Denoising loop
                     for t in reversed(range(num_timesteps)):
-                        t_tensor = torch.tensor([t], device=device)
+                        t_tensor = torch.tensor([t], device=device).float()
                         predicted_noise = model(x, t_tensor, labels_tensor)
                         alpha = 1 - betas[t]
                         alpha_bar = torch.prod(1 - betas[:t+1])
@@ -96,8 +106,8 @@ def train_diffusion():
                 # Stack and save samples
                 samples = torch.cat(samples, dim=0)
                 labels = torch.arange(num_classes).to(device)
-                save_samples(samples, labels, epoch+1,
-                           f'results/diffusion/samples_epoch_{epoch+1}.png')
+                save_samples(samples, labels, start_epoch+epoch+1,
+                           f'results/diffusion/samples_epoch_{start_epoch+epoch+1}.png')
 
 def sample(model, num_samples=10, num_timesteps=1000):
     """Generate samples from trained model"""
@@ -112,7 +122,7 @@ def sample(model, num_samples=10, num_timesteps=1000):
         
         # Denoising loop
         for t in reversed(range(num_timesteps)):
-            t_tensor = torch.tensor([t], device=device)
+            t_tensor = torch.tensor([t], device=device).float()
             predicted_noise = model(x, t_tensor, labels_tensor)
             alpha = 1 - betas[t]
             alpha_bar = torch.prod(1 - betas[:t+1])
